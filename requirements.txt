@@ -31,7 +31,7 @@ PyPDF2==3.0.1
 python-dateutil==2.9.0.post0
 python-dotenv==1.1.1
 pywin32-ctypes==0.2.3
-reportlab @ file:///H:/testcode/PENTEST_CYBER2025/TEXT_LIST/mikrotik/project-pcc/MIikrotik_pcc_MANUS/last%20version/project_Manuse/smartload_system_current_state/src/reportlab-4.4.3-py3-none-any.whl#sha256=df905dc5ec5ddaae91fc9cb3371af863311271d555236410954961c5ee6ee1b5
+reportlab==4.4.3
 RouterOS-api==0.21.0
 setuptools==80.9.0
 six==1.17.0
@@ -39,3 +39,4 @@ SQLAlchemy==2.0.43
 toml==0.10.2
 typing_extensions==4.14.1
 Werkzeug==3.1.3
+
