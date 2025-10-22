@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مراقبة MikroTik - السرعة والاستهلاك</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --success-color: #27ae60;
+            --error-color: #e74c3c;
+            --warning-color: #f39c12;
+            --bg-color: #ecf0f1;
+            --text-color: #333;
+            --border-radius: 8px;
+            --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 20px auto;
+            background: #fff;
+            padding: 30px;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+        }
+        header { text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid var(--secondary-color); }
+        h1 { color: var(--primary-color); margin-bottom: 10px; }
+        h2 { color: var(--primary-color); margin-top: 20px; margin-bottom: 15px; }
+        .form-group { margin-bottom: 20px; }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+        input[type="text"], input[type="password"], input[type="datetime-local"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: var(--border-radius);
+            font-size: 16px;
+        }
+        input[type="text"]:focus, input[type="password"]:focus, input[type="datetime-local"]:focus {
+            outline: none;
+            border-color: var(--secondary-color);
+        }
+        .interface-input {
+            width: calc(100% - 110px);
+            display: inline-block;
+            vertical-align: middle;
+        }
+        .add-interface-btn {
+            width: 100px;
+            display: inline-block;
+            vertical-align: middle;
+            margin-right: 10px;
+            padding: 12px;
+            background-color: var(--success-color);
+            border: none;
+            color: white;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+        }
+        #interface-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        #interface-list li {
+            background-color: #f8f9fa;
+            margin-bottom: 5px;
+            padding: 8px 12px;
+            border-radius: var(--border-radius);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .remove-interface {
+            background-color: var(--error-color);
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+        }
+        .monitor-buttons button, .report-buttons button {
+            background-color: var(--secondary-color);
+            color: white;
+            padding: 14px 20px;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-size: 18px;
+            font-weight: bold;
+            width: 100%;
+            margin-top: 10px;
+            transition: background-color 0.3s ease;
+        }
+        .monitor-buttons button:hover, .report-buttons button:hover {
+            background-color: #2980b9;
+        }
+        .result {
+            margin-top: 25px;
+            padding: 20px;
+            border-radius: var(--border-radius);
+            display: none;
+            font-weight: bold;
+            text-align: center;
+        }
+        .result.info { background-color: #cce5ff; color: #004085; }
+        .result.success { background-color: #d4edda; color: #155724; }
+        .result.error { background-color: #f8d7da; color: #721c24; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            direction: ltr;
+            text-align: right;
+            table-layout: fixed;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: right;
+            word-wrap: break-word;
+        }
+        th { background-color: var(--primary-color); color: white; }
+        tr:nth-child(even) { background-color: #f2f2f2; }
+        .chart-container {
+            margin-top: 30px;
+            height: 400px;
+            position: relative;
+        }
+        .footer-banner {
+            margin-top: 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: var(--border-radius);
+            text-align: center;
+        }
+        #reportSection {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 2px solid var(--secondary-color);
+        }
+        .report-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        .report-buttons button {
+            width: 50%;
+        }
+        .social-links {
+            margin-top: 15px;
+            font-size: 24px;
+        }
+        .social-links a {
+            color: white;
+            margin: 0 10px;
+            transition: transform 0.3s ease;
+        }
+        .social-links a:hover {
+            transform: scale(1.2);
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1><i class="fas fa-network-wired"></i> MikroTik Speed Monitor </h1>
+        <p>عرض سرعة الخطوط واستهلاك البيانات</p>
+    </header>
+    <main>
+        <form id="monitorForm">
+            <h2>معلومات الاتصال والواجهات</h2>
+            <div class="form-group">
+                <label for="monitor_ip">عنوان IP للراوتر:</label>
+                <input type="text" id="monitor_ip" name="monitor_ip" required placeholder="مثال: 192.168.88.1">
+            </div>
+            <div class="form-group">
+                <label for="monitor_username">اسم المستخدم:</label>
+                <input type="text" id="monitor_username" name="monitor_username" required placeholder="مثال: admin">
+            </div>
+            <div class="form-group">
+                <label for="monitor_password">كلمة المرور:</label>
+                <input type="password" id="monitor_password" name="monitor_password" required>
+            </div>
+            <div class="form-group">
+                <label for="new_interface">إضافة واجهة للمراقبة:</label>
+                <input type="text" id="new_interface" class="interface-input" placeholder="مثال: ether1, wlan1">
+                <button type="button" class="add-interface-btn" id="addInterfaceBtn"><i class="fas fa-plus"></i> إضافة</button>
+            </div>
+            <div class="form-group">
+                <label>الواجهات المحددة:</label>
+                <ul id="interface-list"></ul>
+            </div>
+            <div class="monitor-buttons">
+                <button type="submit" id="startButton"><i class="fas fa-chart-line"></i> بدء المراقبة</button>
+                <button type="button" id="stopButton" style="background-color: var(--error-color); display: none;"><i class="fas fa-stop-circle"></i> إيقاف المراقبة</button>
+            </div>
+        </form>
+
+        <div id="monitor_result" class="result"></div>
+        
+        <div id="stats_display" style="display: none;">
+            <p style="text-align: center; margin-top: 10px; font-size: 14px; color: #666;">
+                آخر تحديث: <span id="lastUpdated">-</span>
+            </p>
+            <div id="stats_table"></div>
+            <div class="chart-container">
+                <canvas id="speedChart"></canvas>
+            </div>
+        </div>
+
+        <div id="reportSection">
+            <h2><i class="fas fa-file-invoice"></i> تقارير الأداء</h2>
+            <p>اختر الفترة الزمنية لإنشاء تقرير أداء.</p>
+            <form id="reportForm">
+                <div class="form-group">
+                    <label for="startDate">تاريخ البدء:</label>
+                    <input type="datetime-local" id="startDate" name="startDate" required>
+                </div>
+                <div class="form-group">
+                    <label for="endDate">تاريخ الانتهاء:</label>
+                    <input type="datetime-local" id="endDate" name="endDate" required>
+                </div>
+                <div class="report-buttons">
+                    <button type="button" id="viewReportButton"><i class="fas fa-eye"></i> عرض التقرير</button>
+                    <button type="button" id="downloadPdfButton"><i class="fas fa-download"></i> تحميل PDF</button>
+                </div>
+                <div id="reportResult" class="result"></div>
+            </form>
+            <div id="reportContent"></div>
+        </div>
+    </main>
+    <footer class="footer-banner">
+        <p><i class="fas fa-code"></i> تصميم وبرمجة المهندس / مختار الحماي</p>
+        <p><i class="fas fa-mobile-alt"></i> الهاتف: <strong>967-773324122</strong></p>
+        <div class="social-links">
+            <a href="https://x.com/M_Alhamadee" target="_blank"><i class="fab fa-twitter"></i></a>
+            <a href="https://t.me/mokhtar_tech" target="_blank"><i class="fab fa-telegram-plane"></i></a>
+            <a href="https://www.youtube.com/@mkh20" target="_blank"><i class="fab fa-youtube"></i></a>
+        </div>
+        <p>&copy;  جميع الحقوق محفوظة @ 2025 MokhtarTech</p>
+    </footer>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        const socket = io();
+        const monitorForm = document.getElementById('monitorForm');
+        const addInterfaceBtn = document.getElementById('addInterfaceBtn');
+        const newInterfaceInput = document.getElementById('new_interface');
+        const interfaceListElement = document.getElementById('interface-list');
+        const monitorResultDiv = document.getElementById('monitor_result');
+        const statsTableDiv = document.getElementById('stats_table');
+        const lastUpdatedSpan = document.getElementById('lastUpdated');
+        const speedChartCanvas = document.getElementById('speedChart');
+        const statsDisplayDiv = document.getElementById('stats_display');
+        const startButton = document.getElementById('startButton');
+        const stopButton = document.getElementById('stopButton');
+        const reportForm = document.getElementById('reportForm');
+        const reportResultDiv = document.getElementById('reportResult');
+        const reportContentDiv = document.getElementById('reportContent');
+        const viewReportButton = document.getElementById('viewReportButton');
+        const downloadPdfButton = document.getElementById('downloadPdfButton');
+
+        const savedData = JSON.parse(localStorage.getItem('mikrotik_monitor_data')) || {};
+        const state = {
+            interfaces: savedData.interfaces || [],
+            chartInstance: null,
+            datasets: {},
+            colors: [
+                { rx: '#3498db', tx: '#e74c3c' },
+                { rx: '#2ecc71', tx: '#e67e22' },
+                { rx: '#9b59b6', tx: '#f1c40f' },
+                { rx: '#34495e', tx: '#1abc9c' }
+            ]
+        };
+
+        if (savedData.ip) monitorForm.monitor_ip.value = savedData.ip;
+        if (savedData.username) monitorForm.monitor_username.value = savedData.username;
+        
+        function saveData() {
+            const data = {
+                ip: monitorForm.monitor_ip.value.trim(),
+                username: monitorForm.monitor_username.value.trim(),
+                interfaces: state.interfaces
+            };
+            localStorage.setItem('mikrotik_monitor_data', JSON.stringify(data));
+        }
+
+        function updateInterfaceList() {
+            interfaceListElement.innerHTML = '';
+            state.interfaces.forEach(name => {
+                const li = document.createElement('li');
+                li.innerHTML = `<span>${name}</span> <button type="button" class="remove-interface"><i class="fas fa-trash"></i> إزالة</button>`;
+                li.querySelector('.remove-interface').onclick = () => removeInterface(name);
+                interfaceListElement.appendChild(li);
+            });
+        }
+
+        function addInterface(e) {
+            e.preventDefault();
+            const names = newInterfaceInput.value.split(',').map(name => name.trim()).filter(name => name);
+            if (names.length === 0) {
+                alert('يرجى إدخال اسم واجهة واحدة على الأقل.');
+                return;
+            }
+            names.forEach(name => {
+                if (!state.interfaces.includes(name)) {
+                    state.interfaces.push(name);
+                }
+            });
+            newInterfaceInput.value = '';
+            updateInterfaceList();
+            saveData();
+            initChart();
+        }
+
+        function removeInterface(name) {
+            state.interfaces = state.interfaces.filter(iface => iface !== name);
+            updateInterfaceList();
+            saveData();
+            initChart();
+        }
+
+        function parseSpeedToBps(speedStr) {
+            if (!speedStr || speedStr === 'N/A') return 0;
+            const match = speedStr.match(/([\d.]+)\s*(Gbps|Mbps|Kbps|bps)/);
+            if (!match) return 0;
+            const value = parseFloat(match[1]);
+            const unit = match[2];
+            if (unit === 'Gbps') return value * 1_000_000_000;
+            if (unit === 'Mbps') return value * 1_000_000;
+            if (unit === 'Kbps') return value * 1_000;
+            return value;
+        }
+
+        function initChart() {
+            if (state.chartInstance) {
+                state.chartInstance.destroy();
+            }
+
+            state.datasets = {};
+            const chartDatasets = [];
+
+            state.interfaces.forEach((iface, idx) => {
+                const color_scheme = state.colors[idx % state.colors.length];
+                const rxDataset = {
+                    label: `${iface} - RX`,
+                    data: [],
+                    borderColor: color_scheme.rx,
+                    backgroundColor: 'rgba(0,0,0,0)',
+                    tension: 0.4
+                };
+                const txDataset = {
+                    label: `${iface} - TX`,
+                    data: [],
+                    borderColor: color_scheme.tx,
+                    backgroundColor: 'rgba(0,0,0,0)',
+                    tension: 0.4
+                };
+                state.datasets[iface + '_rx'] = rxDataset;
+                state.datasets[iface + '_tx'] = txDataset;
+                chartDatasets.push(rxDataset);
+                chartDatasets.push(txDataset);
+            });
+
+            const ctx = speedChartCanvas.getContext('2d');
+            state.chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: { labels: [], datasets: chartDatasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { 
+                        title: { display: true, text: 'تتبع سرعة الواجهات (Mbps)' },
+                        tooltip: { mode: 'index', intersect: false }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, title: { display: true, text: 'السرعة (Mbps)' } },
+                        x: { title: { display: true, text: 'الوقت' } }
+                    }
+                }
+            });
+        }
+
+        function updateChart(stats) {
+            if (!state.chartInstance) return;
+            const now = new Date().toLocaleTimeString('ar', { hour12: false });
+            state.chartInstance.data.labels.push(now);
+
+            Object.keys(stats).forEach(iface => {
+                const rx_bps = parseSpeedToBps(stats[iface].rx_speed);
+                const tx_bps = parseSpeedToBps(stats[iface].tx_speed);
+                if (state.datasets[iface + '_rx'] && state.datasets[iface + '_tx']) {
+                    state.datasets[iface + '_rx'].data.push(rx_bps / 1_000_000);
+                    state.datasets[iface + '_tx'].data.push(tx_bps / 1_000_000);
+                }
+            });
+
+            if (state.chartInstance.data.labels.length > 20) {
+                state.chartInstance.data.labels.shift();
+                state.chartInstance.data.datasets.forEach(ds => ds.data.shift());
+            }
+            state.chartInstance.update();
+        }
+
+        function displayStats(stats) {
+            let tableHtml = '<table><thead><tr><th>الواجهة</th><th>لحظية RX سرعة</th><th> لحظية TX سرعة</th><th>إجمالي RX</th><th>إجمالي TX</th></tr></thead><tbody>';
+            for (const [iface, data] of Object.entries(stats)) {
+                tableHtml += `<tr>
+                    <td data-label="الواجهة">${iface}</td>
+                    <td data-label="سرعة RX">${data.rx_speed}</td>
+                    <td data-label="سرعة TX">${data.tx_speed}</td>
+                    <td data-label="إجمالي RX">${data.rx_total}</td>
+                    <td data-label="إجمالي TX">${data.tx_total}</td>
+                </tr>`;
+            }
+            tableHtml += '</tbody></table>';
+            statsTableDiv.innerHTML = tableHtml;
+        }
+
+        function handleConnect(e) {
+            e.preventDefault();
+            const ip = monitorForm.monitor_ip.value.trim();
+            const username = monitorForm.monitor_username.value.trim();
+            const password = monitorForm.monitor_password.value;
+            
+            if (!ip || !username || !password || state.interfaces.length === 0) {
+                monitorResultDiv.style.display = 'block';
+                monitorResultDiv.className = 'result error';
+                monitorResultDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> يرجى إدخال جميع معلومات الاتصال وتحديد واجهة واحدة على الأقل.';
+                return;
+            }
+
+            saveData();
+            monitorResultDiv.style.display = 'block';
+            monitorResultDiv.className = 'result info';
+            monitorResultDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الاتصال وجلب البيانات...';
+            startButton.disabled = true;
+
+            // إرسال طلب الاتصال عبر SocketIO
+            socket.emit('connect_mikrotik', { ip, username, password, interfaces: state.interfaces });
+        }
+
+        function handleDisconnect() {
+            socket.emit('disconnect_mikrotik');
+        }
+
+        function getReportData(startDate, endDate) {
+            reportResultDiv.style.display = 'block';
+            reportResultDiv.className = 'result info';
+            reportResultDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري جلب بيانات التقرير...';
+
+            fetch('/api/get-report-data', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ startDate: startDate, endDate: endDate })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    reportResultDiv.className = 'result success';
+                    reportResultDiv.innerHTML = '<i class="fas fa-check-circle"></i> تم جلب البيانات بنجاح.';
+                    displayReportData(data.data);
+                } else {
+                    reportResultDiv.className = 'result error';
+                    reportResultDiv.innerHTML = `<i class="fas fa-times-circle"></i> خطأ: ${data.message}`;
+                }
+            })
+            .catch(err => {
+                reportResultDiv.className = 'result error';
+                reportResultDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> خطأ في جلب بيانات التقرير: ${err.message}`;
+            });
+        }
+        
+        function downloadPdfReport(startDate, endDate) {
+            reportResultDiv.style.display = 'block';
+            reportResultDiv.className = 'result info';
+            reportResultDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري إعداد ملف PDF...';
+
+            fetch('/api/download-report-pdf', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ startDate: startDate, endDate: endDate })
+            })
+            .then(response => {
+                if (response.ok) {
+                    reportResultDiv.className = 'result success';
+                    reportResultDiv.innerHTML = '<i class="fas fa-check-circle"></i> تم إعداد الملف. سيبدأ التحميل قريباً.';
+                    return response.blob();
+                } else {
+                    return response.text().then(text => { throw new Error(text); });
+                }
+            })
+            .then(blob => {
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = 'mikrotik_report.pdf';
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+            })
+            .catch(err => {
+                reportResultDiv.className = 'result error';
+                reportResultDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> فشل في توليد التقرير: ${err.message}`;
+            });
+        }
+
+        function displayReportData(data) {
+            if (data.length === 0) {
+                reportContentDiv.innerHTML = '<p style="text-align: center;">لا توجد بيانات متاحة في هذه الفترة الزمنية.</p>';
+                return;
+            }
+
+            let tableHtml = `<p style="text-align: right; font-weight: bold;">البيانات التاريخية:</p>`;
+            tableHtml += `
+                <table style="width:100%; border-collapse: collapse; margin-top: 20px;">
+                    <thead>
+                        <tr>
+                            <th style="padding: 8px; border: 1px solid #ccc; background-color: #f2f2f2; text-align: right;">الوقت</th>
+                            <th style="padding: 8px; border: 1px solid #ccc; background-color: #f2f2f2; text-align: right;">الواجهة</th>
+                            <th style="padding: 8px; border: 1px solid #ccc; background-color: #f2f2f2; text-align: right;">سرعة RX</th>
+                            <th style="padding: 8px; border: 1px solid #ccc; background-color: #f2f2f2; text-align: right;">سرعة TX</th>
+                            <th style="padding: 8px; border: 1px solid #ccc; background-color: #f2f2f2; text-align: right;">إجمالي RX</th>
+                            <th style="padding: 8px; border: 1px solid #ccc; background-color: #f2f2f2; text-align: right;">إجمالي TX</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            data.forEach(row => {
+                tableHtml += `
+                    <tr>
+                        <td style="padding: 8px; border: 1px solid #ccc;">${row.timestamp}</td>
+                        <td style="padding: 8px; border: 1px solid #ccc;">${row.interface}</td>
+                        <td style="padding: 8px; border: 1px solid #ccc;">${row.rx_speed}</td>
+                        <td style="padding: 8px; border: 1px solid #ccc;">${row.tx_speed}</td>
+                        <td style="padding: 8px; border: 1px solid #ccc;">${row.rx_total}</td>
+                        <td style="padding: 8px; border: 1px solid #ccc;">${row.tx_total}</td>
+                    </tr>
+                `;
+            });
+            tableHtml += `</tbody></table>`;
+            reportContentDiv.innerHTML = tableHtml;
+        }
+
+        // معالجة أحداث SocketIO
+        socket.on('connect', () => {
+            console.log('Connected to server via SocketIO');
+        });
+
+        socket.on('disconnect', () => {
+            console.log('Disconnected from server');
+        });
+
+        socket.on('connection_status', (data) => {
+            if (data.status === 'success') {
+                monitorResultDiv.className = 'result success';
+                monitorResultDiv.innerHTML = `<i class="fas fa-check-circle"></i> ${data.message}`;
+                statsDisplayDiv.style.display = 'block';
+                startButton.style.display = 'none';
+                stopButton.style.display = 'block';
+            } else {
+                monitorResultDiv.className = 'result error';
+                monitorResultDiv.innerHTML = `<i class="fas fa-times-circle"></i> خطأ: ${data.message}`;
+                startButton.disabled = false;
+                startButton.style.display = 'block';
+                stopButton.style.display = 'none';
+            }
+        });
+
+        socket.on('live_stats', (data) => {
+            if (data.status === 'success') {
+                displayStats(data.stats);
+                updateChart(data.stats);
+                lastUpdatedSpan.textContent = new Date().toLocaleTimeString('ar');
+            } else {
+                console.error('Failed to get live stats:', data.message);
+                monitorResultDiv.className = 'result error';
+                monitorResultDiv.innerHTML = `<i class="fas fa-exclamation-circle"></i> توقف جلب البيانات: ${data.message}`;
+                startButton.style.display = 'block';
+                stopButton.style.display = 'none';
+            }
+        });
+
+        // ربط الأحداث بالأزرار والنماذج
+        addInterfaceBtn.addEventListener('click', addInterface);
+        newInterfaceInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') addInterface(e);
+        });
+        monitorForm.addEventListener('submit', handleConnect);
+        stopButton.addEventListener('click', handleDisconnect);
+        viewReportButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            const startDate = reportForm.startDate.value;
+            const endDate = reportForm.endDate.value;
+            getReportData(startDate, endDate);
+        });
+        downloadPdfButton.addEventListener('click', (e) => {
+            e.preventDefault();
+            const startDate = reportForm.startDate.value;
+            const endDate = reportForm.endDate.value;
+            downloadPdfReport(startDate, endDate);
+        });
+        
+        // Initial setup
+        updateInterfaceList();
+        initChart();
+    });
+</script>
+</body>
+</html>
