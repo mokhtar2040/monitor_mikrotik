@@ -1,4 +1,6 @@
 # app.py
+import eventlet
+eventlet.monkey_patch()
 from flask import Flask, request, jsonify, render_template, send_file, make_response
 from flask_socketio import SocketIO, emit
 from routeros_api import RouterOsApiPool
@@ -365,4 +367,5 @@ def download_report_pdf():
 
 if __name__ == '__main__':
     init_db()
+
     socketio.run(app, debug=True, host='127.0.0.1', port=5000)
